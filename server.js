@@ -55,3 +55,7 @@ app.post("/register", async (req, res) => {
         res.status(500).send("Erro no servidor");
     };
 });
+
+app.get("/endpoint1", async (req, res) => {
+        res.json("endpoint1");
+});
