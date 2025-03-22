@@ -14,11 +14,44 @@ const pool = new Pool({
 
 const runMigrations = async () => {
   try {
-    const migrationsPath = path.join(__dirname, "migrations.sql");
-    const migrationsSQL = fs.readFileSync(migrationsPath, { encoding: "utf-8" });
+    const migrationsDir = path.join(__dirname, "migrations");
+    const migrationFiles = fs.readdirSync(migrationsDir).sort();
 
-    await pool.query(migrationsSQL);
-    console.log("Migrações aplicadas com sucesso!");
+    const createMigrationsTableSQL = `
+    CREATE TABLE IF NOT EXISTS migrations (
+      id SERIAL PRIMARY KEY,
+      name VARCHAR(255) UNIQUE NOT NULL,
+      applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+    );
+    `;  
+
+    await pool.query(createMigrationsTableSQL); 
+    console.log("Tabela 'migrations' criada com sucesso ou já existe.");
+    
+    for(const file of migrationFiles) {
+      if(file.endsWith(".sql")) {
+        const migrationName = file;
+
+        const migrationResult = await pool.query(
+          "SELECT * FROM migrations WHERE name = $1", [migrationName]
+        );
+
+        if(migrationResult.rows.length === 0) {
+          const migrationSQL = fs.readFileSync(path.join(migrationsDir, file), {encoding: "utf-8"});
+        
+          await pool.query(migrationSQL);
+          console.log(`Migração "${migrationName}" aplicada com sucesso.`);
+
+          await pool.query(
+            "INSERT INTO migrations (name) VALUES ($1)",
+            [migrationName]
+          );
+          console.log(`Migração "${migrationName}" registrada com sucesso.`);
+        } else {
+          console.log(`Migração "${migrationName}" já foi aplicada.`)
+        }
+      }
+    }
   } catch (error) {
     console.error("Erro ao rodar migrações: ", error);
   }
