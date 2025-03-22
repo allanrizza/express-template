@@ -56,8 +56,11 @@ app.post("/register", async (req, res) => {
     };
 });
 
-    app.post("/endpoint2", (req, res) => {
-        res.status(200).send("endpoint2");
-    });
+app.get("/endpoint1", async (req, res) => {
+        res.json("endpoint1");
+});
 
-    
+app.post("/endpoint2", (req, res) => {
+        res.status(200).send("endpoint2");
+});
+
