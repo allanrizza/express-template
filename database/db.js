@@ -17,26 +17,13 @@ const runMigrations = async () => {
     const migrationsDir = path.join(__dirname, "migrations");
     const migrationFiles = fs.readdirSync(migrationsDir).sort();
 
-    const createMigrationsTableSQL = `
-    CREATE TABLE IF NOT EXISTS migrations (
-      id SERIAL PRIMARY KEY,
-      name VARCHAR(255) UNIQUE NOT NULL,
-      applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-    );
-    `;  
+    createMigrationsTableIfNotExists();
 
-    await pool.query(createMigrationsTableSQL); 
-    console.log("Tabela 'migrations' criada com sucesso ou já existe.");
-    
     for(const file of migrationFiles) {
       if(file.endsWith(".sql")) {
         const migrationName = file;
 
-        const migrationResult = await pool.query(
-          "SELECT * FROM migrations WHERE name = $1", [migrationName]
-        );
-
-        if(migrationResult.rows.length === 0) {
+        if(!hasMigrationBeenApplied(migrationName)) {
           const migrationSQL = fs.readFileSync(path.join(migrationsDir, file), {encoding: "utf-8"});
         
           await pool.query(migrationSQL);
@@ -56,6 +43,28 @@ const runMigrations = async () => {
     console.error("Erro ao rodar migrações: ", error);
   }
 }
+
+async function createMigrationsTableIfNotExists() {
+  const createMigrationsTableSQL = `
+  CREATE TABLE IF NOT EXISTS migrations (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) UNIQUE NOT NULL,
+    applied_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+  );
+  `;  
+
+  await pool.query(createMigrationsTableSQL); 
+  console.log("Tabela 'migrations' criada com sucesso ou já existe.");
+}
+
+async function hasMigrationBeenApplied(migrationName) {
+  const migrationResult = await pool.query(
+    "SELECT * FROM migrations WHERE name = $1", [migrationName]
+  );
+
+  return migrationResult.rows.length > 0;
+}
+
 
 (async () => {
   try {
